@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Digitális Rendrakó</title>
+    <style>
+        /* --- ALAPOK --- */
+        body { background-color: #2b2b2b; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; padding: 20px; overflow: hidden; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #2b2b2b; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0078d4; padding-bottom: 10px; margin-bottom: 10px; height: 50px; }
+        h1 { margin: 0; color: #ffffff; font-size: 1.5em; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn-header { background-color: #333; color: white; border: 1px solid #555; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+        .btn-header:hover { background-color: #444; }
+
+        .main-list-wrapper { height: calc(100vh - 100px); overflow-y: auto; border-radius: 8px; background-color: #3c3c3c; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #0078d4; color: white; text-align: left; padding: 12px; position: sticky; top: 0; z-index: 10; }
+        td { padding: 10px; border-bottom: 1px solid #505050; vertical-align: middle; }
+        
+        .status-active { color: #4caf50; font-weight: bold; border: 1px solid #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+        .status-idle { color: #aaa; font-family: monospace; }
+        .status-warning { color: #ffeb3b; font-weight: bold; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* ÚJ: KATTINTHATÓ PROGRAM NÉV */
+        .app-name { 
+            font-weight: bold; font-size: 1.1em; color: white; 
+            cursor: pointer; /* Kéz ikon */
+            transition: color 0.2s;
+            display: inline-block; /* Hogy szépen viselkedjen a hover */
+        }
+        .app-name:hover { 
+            color: #0078d4; /* Kék lesz, ha ráviszed az egeret */
+            text-decoration: underline;
+        }
+
+        .window-title { color: #999; font-size: 0.85em; font-style: italic; pointer-events: none; }
+        .btn-ignore { background-color: transparent; border: 1px solid #f44336; color: #f44336; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
+        .btn-ignore:hover { background-color: #f44336; color: white; }
+
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(2px); }
+        .modal-content { background-color: #2b2b2b; margin: 5% auto; padding: 20px; border: 1px solid #555; width: 500px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.7); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #ddd; }
+        input[type="number"] { width: 100%; padding: 8px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; }
+        .btn-save { width: 100%; background-color: #0078d4; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 1.1em; margin-top: 10px; }
+        .btn-save:hover { background-color: #006cbd; }
+
+        .modal-list-wrapper { overflow-y: auto; background-color: #383838; border-radius: 6px; border: 1px solid #444; min-height: 100px; max-height: 50vh; }
+        .btn-restore { background-color: transparent; border: 1px solid #4caf50; color: #4caf50; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
+        .btn-restore:hover { background-color: #4caf50; color: white; }
+        .empty-list { font-style: italic; color: #777; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🧹 Futó Alkalmazások</h1>
+        <div class="btn-group">
+            <button class="btn-header" onclick="openIgnoreModal()">🚫 Kivételek</button>
+            <button class="btn-header" onclick="openSettingsModal()">⚙️ Beállítások</button>
+        </div>
+    </div>
+
+    <div class="main-list-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50%">Alkalmazás</th>
+                    <th style="width: 30%">Állapot</th>
+                    <th style="width: 20%">Művelet</th>
+                </tr>
+            </thead>
+            <tbody id="app-list-body"></tbody>
+        </table>
+    </div>
+
+    <div id="ignoreModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Kivételek kezelése</h2><span class="close-btn" onclick="closeModal('ignoreModal')">&times;</span></div>
+            <div class="modal-list-wrapper">
+                <table><tbody id="ignore-list-body"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>⚙️ Beállítások</h2><span class="close-btn" onclick="closeModal('settingsModal')">&times;</span></div>
+            
+            <div class="form-group">
+                <label>Figyelmeztetési korlát (perc):</label>
+                <input type="number" id="setting-timeLimit" min="1" value="60">
+                <p style="font-size: 0.8em; color: #888;">Ha egy program ennyi ideig inaktív, feldobjuk ezt az ablakot, hogy tudd.</p>
+            </div>
+
+            <button class="btn-save" onclick="saveSettings()">Mentés</button>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        function formatIdleTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) return `${minutes}p ${seconds}mp`;
+            return `${seconds}mp`;
+        }
+
+        ipcRenderer.on('update-list', (event, data) => {
+            const { tracker, currentActive, config } = data;
+            const tbody = document.getElementById('app-list-body');
+            tbody.innerHTML = ''; 
+
+            const sortedApps = Object.values(tracker).sort((a, b) => {
+                if (a.name === currentActive) return -1;
+                if (b.name === currentActive) return 1;
+                return b.idleMs - a.idleMs;
+            });
+
+            const limitMs = config.timeLimit * 60 * 1000;
+
+            sortedApps.forEach(app => {
+                const tr = document.createElement('tr');
+                let statusHtml = '';
+                
+                if (app.name === currentActive) {
+                    statusHtml = '<span class="status-active">JELENLEG AKTÍV</span>';
+                    tr.style.backgroundColor = "#444"; 
+                } else if (app.idleMs > limitMs) {
+                    statusHtml = `<span class="status-warning">⚠️ ${formatIdleTime(app.idleMs)} (Inaktív!)</span>`;
+                    tr.style.borderLeft = "4px solid #ffeb3b";
+                } else {
+                    statusHtml = `<span class="status-idle">${formatIdleTime(app.idleMs)}</span>`;
+                }
+
+                // ITT A VÁLTOZÁS: onclick eseményt adtunk a div-nek
+                // Átadjuk a PID-et (app.pid) a függvénynek
+                tr.innerHTML = `
+                    <td>
+                        <div class="app-name" onclick="switchToApp(${app.pid})" title="Kattints a váltáshoz!">${app.name}</div>
+                        <div class="window-title">${app.title || '(Nincs cím)'}</div>
+                    </td>
+                    <td>${statusHtml}</td>
+                    <td><button class="btn-ignore" onclick="ignoreApp('${app.name}')">🚫 Tiltás</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+
+        // ÚJ FÜGGVÉNY: Üzenet küldése a main.js-nek
+        function switchToApp(pid) {
+            if (pid) {
+                console.log("Váltás PID-re:", pid);
+                ipcRenderer.send('switch-focus', pid);
+            }
+        }
+
+        function ignoreApp(name) { if(confirm(`Tiltólistára teszed: ${name}?`)) ipcRenderer.send('add-to-ignore', name); }
+        function closeModal(id) { document.getElementById(id).style.display = "none"; }
+        window.onclick = function(e) { if (e.target.classList.contains('modal')) e.target.style.display = "none"; }
+
+        function openIgnoreModal() { document.getElementById('ignoreModal').style.display = "block"; ipcRenderer.send('request-ignore-list'); }
+        ipcRenderer.on('update-ignore-list', (event, list) => {
+            const tbody = document.getElementById('ignore-list-body'); tbody.innerHTML = '';
+            if (list.length === 0) { tbody.innerHTML = '<tr><td class="empty-list">Üres lista</td></tr>'; return; }
+            list.forEach(name => {
+                tbody.innerHTML += `<tr><td class="app-name" style="padding-left:20px">${name}</td><td style="text-align:right;padding-right:20px"><button class="btn-restore" onclick="restore('${name}')">♻️ Vissza</button></td></tr>`;
+            });
+        });
+        function restore(name) { ipcRenderer.send('remove-from-ignore', name); }
+
+        function openSettingsModal() { 
+            document.getElementById('settingsModal').style.display = "block"; 
+            ipcRenderer.send('request-config');
+        }
+
+        ipcRenderer.on('update-config', (event, config) => {
+            document.getElementById('setting-timeLimit').value = config.timeLimit;
+        });
+
+        function saveSettings() {
+            const newConfig = {
+                timeLimit: parseInt(document.getElementById('setting-timeLimit').value)
+            };
+            ipcRenderer.send('save-settings', newConfig);
+            closeModal('settingsModal');
+        }
+    </script>
+</body>
+</html>

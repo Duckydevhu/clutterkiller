@@ -1,0 +1,24 @@
+{
+  "name": "clutter-killer",
+  "version": "1.0.0",
+  "description": "Digitális Rendrakó",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder" 
+  },
+  "keywords": [],
+  "author": "Te Neved",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^(verziószám...)",
+    "electron-builder": "^(verziószám...)"
+  },
+  "build": {
+    "appId": "com.clutterkiller.app",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico" 
+    }
+  }
+}
